@@ -3,6 +3,18 @@
  'use strict';
 
   var generator;
+  var data;
+  var fs = require('fs');
+  var file = __dirname + '/data.json';
+   
+  fs.readFile(file, 'utf8', function (err, data) {
+    if (err) {
+      console.log('Error: ' + err);
+      return;
+    }
+    data = JSON.parse(data);
+    console.dir(data);
+  });
 
   function init(gen) {
     generator = gen;
@@ -20,58 +32,58 @@
 
       var restorePrefs = "app.preferences.rulerUnits = startTypeUnits;";
 
-      var items = "var data = [{ \
-          world: { \
-            width: 800, \
-            height: 600, \
-            resolution: 4, \
-            colorMode: 'hsla' \
-          }, \
-          width: 20, \
-          height: 20, \
-          scale: 0.866, \
-          location: { \
-            x: 75.3514, \
-            y: 58.8532 \
-          }, \
-          velocity: { \
-            x: 0.1586, \
-            y: -0.6329 \
-          }, \
-          hue: 13, \
-          saturation: 50, \
-          lightness: 50, \
-          color: [215, 140, 86], \
-          opacity: 0.4893 \
-        }, \
-        { \
-          world: { \
-            width: 800, \
-            height: 600, \
-            resolution: 4, \
-            colorMode: 'hsla' \
-          }, \
-          width: 20, \
-          height: 20, \
-          scale: 0.866, \
-          location: { \
-            x: 75.3514, \
-            y: 58.8532 \
-          }, \
-          velocity: { \
-            x: 0.1586, \
-            y: -0.6329 \
-          }, \
-          hue: 130, \
-          saturation: 50, \
-          lightness: 50, \
-          color: [215, 140, 86], \
-          opacity: 0.4893 \
-        }];";
+      var frames = "var frames = [\
+          {\
+            world: { \
+              width: 800, \
+              height: 600, \
+              resolution: 4, \
+              colorMode: 'hsla' \
+            }, \
+            items: [ \
+              { \
+                width: 20, \
+                height: 20, \
+                scale: 0.866, \
+                location: { \
+                  x: 75.3514, \
+                  y: 58.8532 \
+                }, \
+                velocity: { \
+                  x: 0.1586, \
+                  y: -0.6329 \
+                }, \
+                hue: 13, \
+                saturation: 50, \
+                lightness: 50, \
+                color: [215, 140, 86], \
+                opacity: 0.4893 \
+              }, \
+              { \
+                width: 40, \
+                height: 40, \
+                scale: 1.166, \
+                location: { \
+                  x: 35.3514, \
+                  y: 98.8532 \
+                }, \
+                velocity: { \
+                  x: 0.1586, \
+                  y: -0.6329 \
+                }, \
+                hue: 130, \
+                saturation: 50, \
+                lightness: 50, \
+                color: [215, 140, 86], \
+                opacity: 0.8893 \
+              }\
+            ]\
+          }\
+        ];";
 
-      var openLoop = "for(var i = 0, max = data.length; i < max; i++) {";
+      var openFrameLoop = "for(var i = 0, max = frames.length; i < max; i++) {";
 
-      var createDoc = "var docWidth = data[i].world.width, docHeight = data[i].world.height; \
+      var createDoc = "var docWidth = frames[i].world.width, docHeight = frames[i].world.height; \
           app.documents.add(docWidth, docHeight, 72, 'docRef', NewDocumentMode.RGB);";
 
       var fillBackground = "var solidColor = new SolidColor(); \
@@ -82,19 +94,24 @@
           app.activeDocument.selection.fill(solidColor); \
           app.activeDocument.selection.deselect();";
 
-      var main = "app.activeDocument.artLayers.add(); \
-          var itemWidth = data[i].width * data[i].scale; \
-          var itemHeight = data[i].height * data[i].scale; \
+      var openMainLoop = "for(var j = 0; j < frames[i].items.length; j++) {";
+
+      var main = "var item = frames[i].items[j]; \
+          app.activeDocument.artLayers.add(); \
+          var itemWidth = item.width * item.scale; \
+          var itemHeight = item.height * item.scale; \
           var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight)); \
           app.activeDocument.selection.select(selRegion); \
-          app.activeDocument.selection.translateBoundary(data[i].location.x * data[i].world.resolution, data[i].location.y * data[i].world.resolution); \
-          app.foregroundColor.hsb.hue = data[i].hue; \
-          app.foregroundColor.hsb.saturation = data[i].saturation; \
-          app.foregroundColor.hsb.brightness = data[i].lightness; \
+          app.activeDocument.selection.translateBoundary(item.location.x * frames[i].world.resolution, item.location.y * frames[i].world.resolution); \
+          app.foregroundColor.hsb.hue = item.hue; \
+          app.foregroundColor.hsb.saturation = item.saturation; \
+          app.foregroundColor.hsb.brightness = item.lightness; \
           app.activeDocument.selection.fill(app.foregroundColor); \
-          app.activeDocument.activeLayer.opacity = data[i].opacity * 100; \
+          app.activeDocument.activeLayer.opacity = item.opacity * 100; \
           app.activeDocument.selection.deselect(); \
           app.activeDocument.activeLayer.applyMotionBlur(30, 10);";
+
+      var closeMainLoop = "}";
 
       var saveFile = "var saveFile = new File('~/Desktop/Hello' + i + '.jpg'); \
           saveOptions = new JPEGSaveOptions(); \
@@ -104,17 +121,19 @@
           saveOptions.quality = 10; \
           app.activeDocument.saveAs(saveFile, saveOptions, true, Extension.LOWERCASE);";
 
-      var closeLoop = "}";
+      var closeFrameLoop = "}";
 
       generator.evaluateJSXString(getInitialPrefs +
           setPrefs +
-          items +
-          openLoop +
+          frames +
+          openFrameLoop +
           createDoc +
           fillBackground +
+          openMainLoop +
           main +
+          closeMainLoop +
           saveFile +
-          closeLoop +
+          closeFrameLoop +
           restorePrefs);
     }
   }
