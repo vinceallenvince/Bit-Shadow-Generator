@@ -1,5 +1,10 @@
 #### FOLDERS ####
+Frames
+Frames001
+Movies
 
 #### FILES ####
 *.DS_Store
 *.swp
+agent_data.json
+data-min.json

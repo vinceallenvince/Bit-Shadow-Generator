@@ -1,7 +1,7 @@
 {
-  "name": "BitShadowRenderer",
+  "name": "BitShadowGenerator",
   "version": "1.0.0",
-  "description": "Bit Shadow Machine Renderer",
+  "description": "Bit Shadow Generator",
   "main": "main.js",
   "generator-core-version": "~1"
 }
