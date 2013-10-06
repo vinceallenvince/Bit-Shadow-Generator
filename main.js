@@ -94,12 +94,25 @@
         solidColor.rgb.blue = 0; \
         app.activeDocument.selection.selectAll(); \
         app.activeDocument.selection.fill(solidColor); \
-        app.activeDocument.selection.deselect();";
+        app.activeDocument.selection.deselect(); \
+        var myLayerSets = new Array();";
 
     var openMainLoop = "for(var j = 0; j < frames[i].items.length; j++) {";
 
+    /*
+     * Creates a group at a threshold number of frames. Moves any top-level layers into the group.
+     * Applies Gaussian blur to entire group.
+     */
+    var checkLayerSet = "if (!(j % Math.floor(frames[i].items.length / 4))) { \
+      if (j) { \
+        myLayerSets[myLayerSets.length - 1].merge(); \
+        app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frames[i].items.length, 20, 0)); \
+      } \
+      myLayerSets.push(app.activeDocument.layerSets.add()); \
+    }";
+
     var main = "var item = frames[i].items[j]; \
-        app.activeDocument.artLayers.add(); \
+        myLayerSets[myLayerSets.length - 1].artLayers.add(); \
         var itemWidth = item.width * item.scale * frames[i].world.resolution; \
         var itemHeight = item.height * item.scale * frames[i].world.resolution; \
         var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight)); \
@@ -133,8 +146,7 @@
         app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
         app.activeDocument.selection.deselect(); \
         var blurAngle = item.angle; \
-        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30)); \
-        app.activeDocument.flatten();";
+        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30));";
 
     var closeMainLoop = "}";
 
@@ -161,6 +173,7 @@
         createDoc +
         fillBackground +
         openMainLoop +
+        checkLayerSet +
         main +
         closeMainLoop +
         saveFile +
@@ -181,6 +194,7 @@
    * apply motion blur based on item's angle (direction) and velocity; ex: app.activeDocument.activeLayer.applyMotionBlur(30, 10);
    * motion blur wants a number bw -90 & 90
    * saveFile
+   * app.activeDocument.activeLayer.applyGaussianBlur(map(i, 0, frames[i].items.length, 10, 0)); \
    */
 
   exports.init = init;
