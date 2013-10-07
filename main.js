@@ -6,6 +6,7 @@
   var data;
   var fs = require('fs');
   //var file = __dirname + '/agent_data.json';
+  var currentFrame = 0;
 
   function init(gen) {
     generator = gen;
@@ -18,7 +19,7 @@
 
     if (e.generatorMenuChanged.name === 'fp') {
 
-      var frames = [];
+      /*var frames = [];
       var files = fs.readdirSync(__dirname + '/data');
       var totalFiles = files.length - 1;
 
@@ -38,8 +39,24 @@
           }
         });
 
-      }
+      }*/
+      readFile();
     }
+  }
+
+  function readFile() {
+    var file = __dirname + '/data/agent_data' + currentFrame + '.json';
+    var frames = [];
+    fs.readFile(file, 'utf8', function (err, data) {
+      if (err) {
+        console.log('Error: ' + err);
+        return;
+      }
+      frames.push(JSON.parse(data));
+      //if (frames.length === totalFiles) {
+        render(JSON.stringify(frames)); // need to stringify everything
+      //}
+    });
   }
 
   function render(data) {
@@ -150,7 +167,7 @@
 
     var closeMainLoop = "}";
 
-    var saveFile = "var saveFile = new File('" + __dirname + "/Frames/' + i + '.jpg'); \
+    var saveFile = "var saveFile = new File('" + __dirname + "/Frames/" + currentFrame + ".jpg'); \
         var saveOptions = new JPEGSaveOptions(); \
         saveOptions.embedColorProfile = false; \
         saveOptions.formatOptions = FormatOptions.STANDARDBASELINE; \
@@ -178,7 +195,15 @@
         closeMainLoop +
         saveFile +
         closeFrameLoop +
-        restorePrefs);
+        restorePrefs).done(
+        function (document) {
+            currentFrame++;
+            readFile();
+            console.log('done frame ' + currentFrame + ':', arguments);
+        },
+        function (err) {
+            console.error('err: ', err);
+        });
   }
 
   /*
