@@ -3,63 +3,54 @@
  'use strict';
 
   var generator;
-  var data;
   var fs = require('fs');
-  //var file = __dirname + '/agent_data.json';
+  var dataFiles = null;
+  var totalFrames = 0;
   var currentFrame = 0;
+  var projectStart = null;
+  var framesFolder = null;
 
   function init(gen) {
     generator = gen;
-
     generator.addMenuItem('fp', 'Bit-Shadow Renderer', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
+  /**
+   * Reads data folder and sets total frames = total files in the folder.
+   * @param {Object} e An event object.
+   */
   function menuClicked(e) {
-
     if (e.generatorMenuChanged.name === 'fp') {
-
-      /*var frames = [];
-      var files = fs.readdirSync(__dirname + '/data');
-      var totalFiles = files.length - 1;
-
-      // read all files and append data to frames
-      for (var i = 0; i < totalFiles; i++) {
-
-        var file = __dirname + '/data/agent_data' + i + '.json';
-
-        fs.readFile(file, 'utf8', function (err, data) {
-          if (err) {
-            console.log('Error: ' + err);
-            return;
-          }
-          frames.push(JSON.parse(data));
-          if (frames.length === totalFiles) {
-            render(JSON.stringify(frames)); // need to stringify everything
-          }
-        });
-
-      }*/
+      projectStart = new Date().getTime();
+      framesFolder = __dirname + '/Frames/' + getFolderName();
+      fs.mkdirSync(framesFolder);
+      dataFiles = fs.readdirSync(__dirname + '/data');
+      totalFrames = getTotalFrames(dataFiles);
       readFile();
     }
   }
 
+  /**
+   * Reads a json file and passes it to render().
+   */
   function readFile() {
-    var file = __dirname + '/data/agent_data' + currentFrame + '.json';
-    var frames = [];
+
+    var frameStart = new Date().getTime(),
+        file = __dirname + '/data/agent_data' + currentFrame + '.json',
+        frames = [];
+
     fs.readFile(file, 'utf8', function (err, data) {
       if (err) {
         console.log('Error: ' + err);
         return;
       }
       frames.push(JSON.parse(data));
-      //if (frames.length === totalFiles) {
-        render(JSON.stringify(frames)); // need to stringify everything
-      //}
+      render(JSON.stringify(frames), frameStart); // need to stringify everything
     });
   }
 
-  function render(data) {
+  function render(data, frameStart) {
 
     var retina = 2;
 
@@ -167,7 +158,7 @@
 
     var closeMainLoop = "}";
 
-    var saveFile = "var saveFile = new File('" + __dirname + "/Frames/" + currentFrame + ".jpg'); \
+    var saveFile = "var saveFile = new File('" + framesFolder + "/" + currentFrame + ".jpg'); \
         var saveOptions = new JPEGSaveOptions(); \
         saveOptions.embedColorProfile = false; \
         saveOptions.formatOptions = FormatOptions.STANDARDBASELINE; \
@@ -197,13 +188,83 @@
         closeFrameLoop +
         restorePrefs).done(
         function (document) {
-            currentFrame++;
+          var frameDuration = new Date().getTime() - frameStart;
+          currentFrame++;
+          console.log('Frame ' + currentFrame + ' (' + msToSec(frameDuration) +
+              's) Time remaining: ~' + getTimeRemaining(frameDuration, currentFrame, totalFrames) + 's');
+          if (currentFrame < totalFrames) {
             readFile();
-            console.log('done frame ' + currentFrame + ':', arguments);
+          } else {
+            renderComplete();
+          }
         },
         function (err) {
             console.error('err: ', err);
         });
+  }
+
+  /**
+   * Iterates over a passed array of file names and counts
+   * only the .json files.
+   * @param {Array.<string>} dataFiles An array of file names.
+   * @return {number} The total number of frames to render.
+   */
+  function getTotalFrames(dataFiles) {
+    var i, total = 0;
+    for (var i = dataFiles.length - 1; i >=0; i--) {
+      if (dataFiles[i].search('.json') !== -1) {
+        total++;
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Returns the approximate time remaining to render the project.
+   * @param {number} frameDuration The last frame duration in milliseconds.
+   * @param {number} currentFrame The current frame number.
+   * @param {number} totalFrames The total number of frames in the project.
+   * return {number} Seconds.
+   */
+  function getTimeRemaining(frameDuration, currentFrame, totalFrames) {
+    return msToSec((totalFrames - currentFrame) * frameDuration);
+  }
+
+  /**
+   * Formats a folder name based on the currrent time.
+   */
+  function getFolderName() {
+
+    var date = new Date(),
+        year = date.getFullYear(),
+        month = date.getMonth(),
+        day = date.getDate(),
+        hours = date.getHours(),
+        minutes = date.getMinutes(),
+        seconds = date.getSeconds();
+
+    return year + (month < 10 ? '0' + month : month) +
+        (day < 10 ? '0' + day : day) +
+        (hours < 10 ? '0' + hours : hours) +
+        (minutes < 10 ? '0' + minutes : minutes) +
+        (seconds < 10 ? '0' + seconds : seconds);
+  }
+
+  /**
+   * Returns seconds based on passed milliseconds.
+   * return {number} Seconds.
+   */
+  function msToSec(ms) {
+    return parseFloat(ms / 1000).toFixed(2);
+  }
+
+  /**
+   * Done!
+   */
+  function renderComplete() {
+    console.log('*** DONE ***');
+    console.log('Total frames: ' + currentFrame);
+    console.log('Time: ' + msToSec(new Date().getTime() - projectStart) + 'sec');
   }
 
   /*
