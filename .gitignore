@@ -3,9 +3,11 @@ Frames
 Frames001
 Movies
 data
+node_modules
 
 #### FILES ####
 *.DS_Store
 *.swp
 agent_data.json
 data-min.json
+config.json

@@ -3,5 +3,8 @@
   "version": "1.0.0",
   "description": "Bit Shadow Generator",
   "main": "main.js",
-  "generator-core-version": "~1"
+  "generator-core-version": "~1",
+  "dependencies": {
+    "twit": "~1.1.9"
+  }
 }

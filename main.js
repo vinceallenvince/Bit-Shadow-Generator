@@ -2,13 +2,15 @@
 
  'use strict';
 
+  var fs = require('fs'),
+      Twit = require('twit');
   var generator;
-  var fs = require('fs');
   var dataFiles = null;
   var totalFrames = 0;
   var currentFrame = 0;
   var projectStart = null;
   var framesFolder = null;
+  var config = null;
 
   function init(gen) {
     generator = gen;
@@ -27,7 +29,18 @@
       fs.mkdirSync(framesFolder);
       dataFiles = fs.readdirSync(__dirname + '/data');
       totalFrames = getTotalFrames(dataFiles);
-      readFile();
+
+      // store credentials in config.json
+      var file = __dirname + '/config.json';
+
+      fs.readFile(file, 'utf8', function (err, data) {
+        if (err) {
+          console.log('Error: ' + err);
+          return;
+        }
+        config = JSON.parse(data);
+        readFile();
+      });
     }
   }
 
@@ -262,9 +275,27 @@
    * Done!
    */
   function renderComplete() {
+    var projectTime = msToSec(new Date().getTime() - projectStart);
+    createTweet(projectTime);
     console.log('*** DONE ***');
     console.log('Total frames: ' + currentFrame);
-    console.log('Time: ' + msToSec(new Date().getTime() - projectStart) + 'sec');
+    console.log('Time: ' + projectTime + 'sec');
+  }
+
+  function createTweet(projectTime) {
+
+    var T = new Twit({
+        consumer_key:         config.twitter_consumer_key
+      , consumer_secret:      config.twitter_consumer_secret
+      , access_token:         config.twitter_access_token
+      , access_token_secret:  config.twitter_access_token_secret
+    });
+
+    var status = 'The machine is done! Rendered ' + currentFrame + ' frames in ' + projectTime + ' secs.';
+
+    T.post('statuses/update', { status: status }, function(err, reply) {
+      console.log('Tweet: ', err, reply);
+    })
   }
 
   /*
