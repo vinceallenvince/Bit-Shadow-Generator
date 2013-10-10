@@ -8,7 +8,7 @@
       util = require('util'),
       https = require('https'),
       restclient = require('node-restclient'),
-      OAuth = require('OAuth');
+      OAuth = require('oauth');
 
   var generator;
   var dataFiles = null;
