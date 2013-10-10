@@ -2,11 +2,14 @@
 
  'use strict';
 
-  var fs = require('fs'),
+  var sys = require('sys'),
+      exec = require('child_process').exec,
+      fs = require('fs'),
       util = require('util'),
       https = require('https'),
       restclient = require('node-restclient'),
       OAuth = require('OAuth');
+
   var generator;
   var dataFiles = null;
   var totalFrames = 0;
@@ -14,8 +17,11 @@
   var projectStart = null;
   var framesFolder = null;
   var config = null;
-  var sendTweet = true;
+  var sendTweet = false;
   var framesBTWTweets = 100;
+
+  // http://labs.laan.com/wp/2011/01/how-to-make-time-lapse-screencaptures-of-your-design-work-for-free-mac/
+  var createMPEG = 'ffmpeg -r 60 -i %d.jpg -b 30000k render.mov';
 
   function init(gen) {
     generator = gen;
@@ -285,10 +291,22 @@
    */
   function renderComplete() {
     var projectTime = msToSec(new Date().getTime() - projectStart);
-    createTweetStatus(projectTime);
+    if (sendTweet) {
+      createTweetStatus(projectTime);
+    }
     console.log('*** DONE ***');
-    console.log('Total frames: ' + currentFrame - 1);
+    console.log('Total frames: ' + (currentFrame - 1));
     console.log('Time: ' + projectTime + 'sec');
+
+    // create an mpeg
+    exec('cd ' + framesFolder + '; ' + createMPEG, execOutputs);
+  }
+
+  function execOutputs(error, stdout, stderr) {
+    console.log('Created MPEG');
+    sys.puts('Error: ', error);
+    sys.puts(stdout);
+    sys.puts('Output: ', stderr);
   }
 
   function createTweet(status) {
