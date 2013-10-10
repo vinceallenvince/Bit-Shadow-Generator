@@ -3,14 +3,18 @@
  'use strict';
 
   var fs = require('fs'),
-      Twit = require('twit');
+      util = require('util'),
+      https = require('https'),
+      restclient = require('node-restclient'),
+      OAuth = require('OAuth');
   var generator;
   var dataFiles = null;
   var totalFrames = 0;
-  var currentFrame = 0;
+  var currentFrame = 913;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
+  var sendTweet = false;
 
   function init(gen) {
     generator = gen;
@@ -157,16 +161,16 @@
           height: docHeight \
         }; \
         if (!isInside(pos, container)) { \
-          break; \
+          continue; \
         } \
         app.activeDocument.selection.translateBoundary(x, y); \
-        app.foregroundColor.hsb.hue = item.hue; \
-        app.foregroundColor.hsb.saturation = item.saturation * 100; \
-        app.foregroundColor.hsb.brightness = item.lightness * 100; \
+        app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359); \
+        app.foregroundColor.hsb.saturation = constrain(item.saturation * 100, 0, 100); \
+        app.foregroundColor.hsb.brightness = constrain(item.lightness * 100, 0, 100); \
         app.activeDocument.selection.fill(app.foregroundColor); \
         app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
         app.activeDocument.selection.deselect(); \
-        var blurAngle = item.angle; \
+        var blurAngle = constrain(item.angle, -360, 360); \
         app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30));";
 
     var closeMainLoop = "}";
@@ -276,27 +280,163 @@
    */
   function renderComplete() {
     var projectTime = msToSec(new Date().getTime() - projectStart);
-    createTweet(projectTime);
+    if (sendTweet) {
+      createTweetStatus(projectTime);
+    }
     console.log('*** DONE ***');
     console.log('Total frames: ' + currentFrame);
     console.log('Time: ' + projectTime + 'sec');
   }
 
-  function createTweet(projectTime) {
+  function createTweet(status) {
 
-    var T = new Twit({
-        consumer_key:         config.twitter_consumer_key
-      , consumer_secret:      config.twitter_consumer_secret
-      , access_token:         config.twitter_access_token
-      , access_token_secret:  config.twitter_access_token_secret
+    var fileName = framesFolder + '/' + (currentFrame - 1) + '.jpg';
+
+    var data = fs.readFileSync(fileName);
+
+    var oauth = new OAuth.OAuth(
+      'https://api.twitter.com/oauth/request_token',
+      'https://api.twitter.com/oauth/access_token',
+      config.twitter_consumer_key,
+      config.twitter_consumer_secret,
+      '1.0A',
+      null,
+      'HMAC-SHA1'
+    );
+
+    uploadMedia(oauth, status, fileName);
+
+    // uncomment to just tweet a status without media
+    // function(url, oauth_token, oauth_token_secret, post_body, post_content_type, callback)
+    /*oauth.post(
+      'https://api.twitter.com/1.1/statuses/update.json',
+      config.twitter_access_token,
+      config.twitter_access_token_secret,
+      {status: status},
+      'application/json',
+      function (err, data, res){
+        if (err) {
+          console.error(err);
+        }
+        console.log(util.inspect(data));
+      });*/
+ }
+
+  /**
+   * Manually builds a multipart/form-data request and makes the post.
+   *
+   * http://stackoverflow.com/questions/12921371/posting-images-to-twitter-in-node-js-using-oauth
+   */
+  function uploadMedia(oauth, status, fileName) {
+
+    var data = fs.readFileSync(fileName);
+    var crlf ='\r\n';
+    var boundary = '---------------------------10102754414578508781458777923';
+
+    var separator = '--' + boundary;
+    var footer = crlf + separator + '--' + crlf;
+    var fileHeader = 'Content-Disposition: file; name="media"; filename="' + fileName + '"';
+
+    var contents = separator + crlf
+        + 'Content-Disposition: form-data; name="status"' + crlf
+        + crlf
+        + status + crlf
+        + separator + crlf
+        + fileHeader + crlf
+        + 'Content-Type: image/jpeg' +  crlf
+        + crlf;
+
+    var multipartBody = Buffer.concat([
+        new Buffer(contents),
+        data,
+        new Buffer(footer)]);
+
+    var hostname = 'api.twitter.com';
+    var authorization = oauth.authHeader(
+        'https://api.twitter.com/1.1/statuses/update_with_media.json',
+        config.twitter_access_token, config.twitter_access_token_secret, 'POST');
+
+    var headers = {
+        'Authorization': authorization,
+        'Content-Type': 'multipart/form-data; boundary=' + boundary,
+        'Host': hostname,
+        'Content-Length': multipartBody.length,
+        'Connection': 'Keep-Alive'
+    };
+
+    var options = {
+        host: hostname,
+        port: 443,
+        path: '/1.1/statuses/update_with_media.json',
+        method: 'POST',
+        headers: headers
+    };
+
+    var request = https.request(options);
+    request.write(multipartBody);
+    request.end();
+
+    request.on('error', function (err) {
+        console.log('Error: Something is wrong.\n'+JSON.stringify(err)+'\n');
     });
 
-    var status = 'The machine is done! Rendered ' + currentFrame + ' frames in ' + projectTime + ' secs.';
+    request.on('response', function (response) {
+        response.setEncoding('utf8');
+        response.on('data', function (chunk) {
+            console.log(chunk.toString());
+        });
+        response.on('end', function () {
+            console.log(response.statusCode +'\n');
+        });
+    });
 
-    T.post('statuses/update', { status: status }, function(err, reply) {
-      console.log('Tweet: ', err, reply);
-    })
   }
+
+  /**
+   * Queries Wordnik for random words and concatenates a phrase. If the query is successful,
+   * calls createTweet to post the status to Twitter.
+   *
+   * @param {number} projectTime The time in seconds it took to render the project.
+   */
+  function createTweetStatus(projectTime) {
+
+    var getNounsURL = "http://api.wordnik.com/v4/words.json/randomWords?" +
+      "minCorpusCount=1000" +
+      "&minDictionaryCount=10" +
+      "&excludePartOfSpeech=noun,verb,adverb,interjection,pronoun,preposition,abbreviation,affix,article,auxiliary-verb,conjunction,definite-article,family-name,given-name,idiom,imperative,noun-plural,past-participle,proper-noun,proper-noun-plural,suffix,verb-intransitive,verb-transitive" + // noun-possessive, phrasal-prefix
+      "&includePartOfSpeech=adjective" +
+      "&hasDictionaryDef=true" +
+      "&limit=5" +
+      "&maxLength=12" +
+      "&api_key=" + config.wordnik_api_key;
+
+    restclient.get(getNounsURL, function(reply) {
+
+      var subject = reply[0].word,
+          modifier = reply[1].word;
+
+      var status = 'The ' + subject + ' is ' + modifier + '! Rendered ' + currentFrame + ' frames in ' + projectTime + ' secs.';
+
+      createTweet(status);
+    }, 'json');
+  }
+
+  /**
+   * Generates a psuedo-random number within a range.
+   *
+   * @function getRandomNumber
+   * @memberof System
+   * @param {number} low The low end of the range.
+   * @param {number} high The high end of the range.
+   * @param {boolean} [flt] Set to true to return a float.
+   * @returns {number} A number.
+   */
+  function getRandomNumber(low, high, flt) {
+    if (flt) {
+      return Math.random()*(high-(low-1)) + low;
+    }
+    return Math.floor(Math.random()*(high-(low-1))) + low;
+  };
 
   /*
    * update width/height based on scale; ex: var itemWidth = data.width * data.scale; itemHeight = data.height * data.scale;
