@@ -10,11 +10,12 @@
   var generator;
   var dataFiles = null;
   var totalFrames = 0;
-  var currentFrame = 913;
+  var currentFrame = 0;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
-  var sendTweet = false;
+  var sendTweet = true;
+  var framesBTWTweets = 100;
 
   function init(gen) {
     generator = gen;
@@ -211,6 +212,10 @@
               's) Time remaining: ~' + getTimeRemaining(frameDuration, currentFrame, totalFrames) + 's');
           if (currentFrame < totalFrames) {
             readFile();
+            var projectTime = msToSec(new Date().getTime() - projectStart);
+            if (sendTweet && !(currentFrame % framesBTWTweets)) {
+              createTweetStatus(projectTime);
+            }
           } else {
             renderComplete();
           }
@@ -280,11 +285,9 @@
    */
   function renderComplete() {
     var projectTime = msToSec(new Date().getTime() - projectStart);
-    if (sendTweet) {
-      createTweetStatus(projectTime);
-    }
+    createTweetStatus(projectTime);
     console.log('*** DONE ***');
-    console.log('Total frames: ' + currentFrame);
+    console.log('Total frames: ' + currentFrame - 1);
     console.log('Time: ' + projectTime + 'sec');
   }
 
