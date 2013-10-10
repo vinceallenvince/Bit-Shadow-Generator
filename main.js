@@ -1,7 +1,7 @@
 (function() {
 
  'use strict';
-
+  console.log('Version: ' + process.version);
   var sys = require('sys'),
       exec = require('child_process').exec,
       fs = require('fs'),
