@@ -70,11 +70,14 @@
         return;
       }
       frames.push(JSON.parse(data));
-      render(JSON.stringify(frames), frameStart); // need to stringify everything
+      render(data, frameStart); // need to stringify everything
     });
   }
 
   function render(data, frameStart) {
+
+    var test = JSON.parse(data);
+    console.log('total items to render: ' + test.items.length);
 
     var retina = 2;
 
@@ -112,12 +115,10 @@
 
     var restorePrefs = "app.preferences.rulerUnits = startTypeUnits;";
 
-    var frames = "var frames = " + data + ";";
+    var frames = "var frame = " + data + ";";
 
-    var openFrameLoop = "for(var i = 0, max = frames.length; i < max; i++) {";
-
-    var createDoc = "var docWidth = frames[i].world.width * frames[i].world.resolution * " + retina + "; \
-        var docHeight = frames[i].world.height * frames[i].world.resolution * " + retina + "; \
+    var createDoc = "var docWidth = frame.world.width * frame.world.resolution * " + retina + "; \
+        var docHeight = frame.world.height * frame.world.resolution * " + retina + "; \
         app.documents.add(docWidth, docHeight, 144, 'docRef' + i, NewDocumentMode.RGB);";
 
     var fillBackground = "var solidColor = new SolidColor(); \
@@ -127,30 +128,43 @@
         app.activeDocument.selection.selectAll(); \
         app.activeDocument.selection.fill(solidColor); \
         app.activeDocument.selection.deselect(); \
-        var myLayerSets = new Array();";
+        var myLayerSets = []; \
+        var layerSetMax = Math.floor(frame.items.length / 4); \
+        var layerSetCount = 0; \
+        myLayerSets.push(app.activeDocument.layerSets.add()); \
+        myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;";
 
-    var openMainLoop = "for(var j = 0; j < frames[i].items.length; j++) {";
+    var openMainLoop = "for(var j = 0; j < frame.items.length; j++) {";
 
     /*
      * Creates a group at a threshold number of frames. Moves any top-level layers into the group.
-     * Applies Gaussian blur to entire group.
+     * Adds a filled selection to a new artLayer so Gausssian blue does not try to blur
+     * an empty layer. Applies Gaussian blur to entire group.
      */
-    var checkLayerSet = "if (!(j % Math.floor(frames[i].items.length / 4))) { \
-      if (j) { \
-        myLayerSets[myLayerSets.length - 1].merge(); \
-        app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frames[i].items.length, 20, 0)); \
-      } \
+    var checkLayerSet = "if (layerSetMax > 4 && layerSetCount < layerSetMax) { \
+      layerSetCount++; \
+    } else { \
+      myLayerSets[myLayerSets.length - 1].artLayers.add(); \
+      var fakeRegion = Array(Array(0, 0), Array(1, 0), Array(1, 1), Array(0, 1)); \
+      app.activeDocument.selection.select(selRegion); \
+      app.activeDocument.selection.fill(app.foregroundColor); \
+      app.activeDocument.activeLayer.opacity = 1; \
+      app.activeDocument.selection.deselect(); \
+      myLayerSets[myLayerSets.length - 1].merge(); \
+      app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frame.items.length, 20, 0)); \
       myLayerSets.push(app.activeDocument.layerSets.add()); \
+      myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length; \
+      layerSetCount = 0; \
     }";
 
-    var main = "var item = frames[i].items[j]; \
+    var main = "var item = frame.items[j]; \
         myLayerSets[myLayerSets.length - 1].artLayers.add(); \
-        var itemWidth = item.width * item.scale * frames[i].world.resolution; \
-        var itemHeight = item.height * item.scale * frames[i].world.resolution; \
+        var itemWidth = item.scale * frame.world.resolution * 4; \
+        var itemHeight = item.scale * frame.world.resolution * 4; \
         var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight)); \
         app.activeDocument.selection.select(selRegion); \
-        var x = (item.location.x * frames[i].world.resolution * " + retina + ") - itemWidth / 2; \
-        var y = (item.location.y * frames[i].world.resolution * " + retina + ") - itemHeight / 2; \
+        var x = (item.location.x * frame.world.resolution * " + retina + ") - itemWidth / 2; \
+        var y = (item.location.y * frame.world.resolution * " + retina + ") - itemHeight / 2; \
         var pos = { \
           location: { \
             x: x, \
@@ -171,11 +185,18 @@
           continue; \
         } \
         app.activeDocument.selection.translateBoundary(x, y); \
-        app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359); \
-        app.foregroundColor.hsb.saturation = constrain(item.saturation * 100, 0, 100); \
-        app.foregroundColor.hsb.brightness = constrain(item.lightness * 100, 0, 100); \
+        if (frame.world.colorMode === 'hsla') { \
+          app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359); \
+          app.foregroundColor.hsb.saturation = constrain(item.saturation * 100, 0, 100); \
+          app.foregroundColor.hsb.brightness = constrain(item.lightness * 100, 0, 100); \
+        } else { \
+          app.foregroundColor.rgb.red = constrain(item.color[0], 0, 255); \
+          app.foregroundColor.rgb.green = constrain(item.color[1], 0, 255); \
+          app.foregroundColor.rgb.blue = constrain(item.color[2], 0, 255); \
+        } \
         app.activeDocument.selection.fill(app.foregroundColor); \
         app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
+        app.activeDocument.selection.rotate(item.location.x + item.scale, AnchorPosition.MIDDLECENTER); \
         app.activeDocument.selection.deselect(); \
         var blurAngle = constrain(item.angle, -360, 360); \
         app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30));";
@@ -191,8 +212,6 @@
         app.activeDocument.saveAs(saveFile, saveOptions, true, Extension.LOWERCASE); \
         app.activeDocument.close(SaveOptions.DONOTSAVECHANGES);";
 
-    var closeFrameLoop = "}";
-
     generator.evaluateJSXString(map +
         constrain +
         mag +
@@ -201,7 +220,6 @@
         getInitialPrefs +
         setPrefs +
         frames +
-        openFrameLoop +
         createDoc +
         fillBackground +
         openMainLoop +
@@ -209,7 +227,6 @@
         main +
         closeMainLoop +
         saveFile +
-        closeFrameLoop +
         restorePrefs).done(
         function (document) {
           var frameDuration = new Date().getTime() - frameStart;
