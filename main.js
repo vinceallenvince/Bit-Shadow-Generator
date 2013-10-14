@@ -13,7 +13,7 @@
   var generator;
   var dataFiles = null;
   var totalFrames = 0;
-  var currentFrame = 0;
+  var currentFrame = 60;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
@@ -100,10 +100,10 @@
     var radiansToDegrees = "var radiansToDegrees = function(radians) {return radians * (180/Math.PI);};";
 
     var isInside = "var isInside = function(obj, container) { \
-        if (obj.location.x + obj.width/2 > container.location.x - container.width/2 && \
-          obj.location.x - obj.width/2 < container.location.x + container.width/2 && \
-          obj.location.y + obj.height/2 > container.location.y - container.height/2 && \
-          obj.location.y - obj.height/2 < container.location.y + container.height/2) { \
+        if (obj.location.x + obj.width > 0 && \
+          obj.location.x - obj.width < container.width && \
+          obj.location.y + obj.height > 0 && \
+          obj.location.y - obj.height < container.height) { \
           return true; \
         } \
         return false; \
@@ -141,7 +141,7 @@
      * Adds a filled selection to a new artLayer so Gausssian blue does not try to blur
      * an empty layer. Applies Gaussian blur to entire group.
      */
-    var checkLayerSet = "if (layerSetMax > 4 && layerSetCount < layerSetMax) { \
+    var checkLayerSet = "if (layerSetCount < layerSetMax) { \
       layerSetCount++; \
     } else { \
       myLayerSets[myLayerSets.length - 1].artLayers.add(); \
@@ -184,7 +184,6 @@
         if (!isInside(pos, container)) { \
           continue; \
         } \
-        app.activeDocument.selection.translateBoundary(x, y); \
         if (frame.world.colorMode === 'hsla') { \
           app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359); \
           app.foregroundColor.hsb.saturation = constrain(item.saturation * 100, 0, 100); \
@@ -198,6 +197,7 @@
         app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
         app.activeDocument.selection.rotate(item.location.x + item.scale, AnchorPosition.MIDDLECENTER); \
         app.activeDocument.selection.deselect(); \
+        app.activeDocument.activeLayer.translate(x, y); \
         var blurAngle = constrain(item.angle, -360, 360); \
         app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30));";
 
