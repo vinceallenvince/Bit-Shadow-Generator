@@ -1,13 +1,10 @@
 #### FOLDERS ####
-Frames
-Frames001
-Movies
-data
-node_modules
+Movies/
+node_modules/
+Frames/
 
 #### FILES ####
 *.DS_Store
 *.swp
-agent_data.json
-data-min.json
 config.json
+data

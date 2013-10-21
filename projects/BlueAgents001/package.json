@@ -1,7 +1,7 @@
 {
-  "name": "BitShadowGenerator",
+  "name": "BlueAgents001",
   "version": "1.0.0",
-  "description": "Bit Shadow Generator",
+  "description": "Blue Agents 001",
   "main": "main.js",
   "generator-core-version": "~1",
   "dependencies": {

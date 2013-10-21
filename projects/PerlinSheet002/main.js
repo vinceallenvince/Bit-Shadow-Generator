@@ -13,7 +13,7 @@
   var generator;
   var dataFiles = null;
   var totalFrames = 0;
-  var currentFrame = 60;
+  var currentFrame = 0;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
@@ -25,7 +25,7 @@
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('fp', 'Bit-Shadow Renderer', true, false);
+    generator.addMenuItem('perlinsheet0002', 'PerlinSheet002', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -34,7 +34,7 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'fp') {
+    if (e.generatorMenuChanged.name === 'perlinsheet0002') {
       projectStart = new Date().getTime();
       framesFolder = __dirname + '/Frames/' + getFolderName();
       fs.mkdirSync(framesFolder);
@@ -141,6 +141,7 @@
      * Adds a filled selection to a new artLayer so Gausssian blue does not try to blur
      * an empty layer. Applies Gaussian blur to entire group.
      */
+     //       app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frame.items.length, 20, 0)); \
     var checkLayerSet = "if (layerSetCount < layerSetMax) { \
       layerSetCount++; \
     } else { \
@@ -151,7 +152,6 @@
       app.activeDocument.activeLayer.opacity = 1; \
       app.activeDocument.selection.deselect(); \
       myLayerSets[myLayerSets.length - 1].merge(); \
-      app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frame.items.length, 20, 0)); \
       myLayerSets.push(app.activeDocument.layerSets.add()); \
       myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length; \
       layerSetCount = 0; \
@@ -194,10 +194,11 @@
           app.foregroundColor.rgb.blue = constrain(item.color[2], 0, 255); \
         } \
         app.activeDocument.selection.fill(app.foregroundColor); \
-        app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
+        app.activeDocument.selection.translate(itemWidth * 2, itemHeight * 2); \
         app.activeDocument.selection.rotate(item.location.x + item.scale, AnchorPosition.MIDDLECENTER); \
+        app.activeDocument.selection.translate(x - (itemWidth * 2), y - (itemHeight * 2)); \
         app.activeDocument.selection.deselect(); \
-        app.activeDocument.activeLayer.translate(x, y); \
+        app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
         var blurAngle = constrain(item.angle, -360, 360); \
         app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30));";
 
