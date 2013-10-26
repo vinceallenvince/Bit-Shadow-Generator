@@ -25,7 +25,7 @@
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('bosstest001', 'BossTest001', true, false);
+    generator.addMenuItem('RedRepeller002', 'RedRepeller002', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -34,7 +34,7 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'bosstest001') {
+    if (e.generatorMenuChanged.name === 'RedRepeller002') {
       projectStart = new Date().getTime();
       framesFolder = __dirname + '/Frames/' + getFolderName();
       fs.mkdirSync(framesFolder);
