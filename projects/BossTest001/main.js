@@ -25,7 +25,7 @@
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('perlinsheet003', 'PerlinSheet003', true, false);
+    generator.addMenuItem('bosstest001', 'BossTest001', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -34,12 +34,10 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'perlinsheet003') {
+    if (e.generatorMenuChanged.name === 'bosstest001') {
       projectStart = new Date().getTime();
       framesFolder = __dirname + '/Frames/' + getFolderName();
       fs.mkdirSync(framesFolder);
-      dataFiles = fs.readdirSync(__dirname + '/data');
-      totalFrames = getTotalFrames(dataFiles);
 
       // store credentials in config.json
       var file = __dirname + '/config.json';
