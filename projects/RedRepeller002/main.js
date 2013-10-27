@@ -126,10 +126,10 @@
     var radiansToDegrees = "var radiansToDegrees = function(radians) {return radians * (180/Math.PI);};";
 
     var isInside = "var isInside = function(obj, container) { \
-        if (obj.location.x + obj.width / 2 > 0 && \
-          obj.location.x - obj.width / 2 < container.width && \
-          obj.location.y + obj.height / 2 > 0 && \
-          obj.location.y - obj.height / 2 < container.height) { \
+        if (obj.location.x > 0 && \
+          obj.location.x + obj.width < container.width && \
+          obj.location.y > 0 && \
+          obj.location.y + obj.height < container.height) { \
           return true; \
         } \
         return false; \
@@ -302,6 +302,7 @@
 
     }).on('error', function(e) {
       console.log("Got error: " + e.message);
+      readFile();
     });
   }
 
