@@ -16,7 +16,7 @@
   var generator;
   var dataFiles = null;
   var totalFrames = 0;
-  var currentFrame = null;
+  var currentFrame = 200;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
@@ -48,9 +48,29 @@
           return;
         }
         config = JSON.parse(data);
+        //readLocalFile();
         readFile();
       });
     }
+  }
+
+  /**
+   * Reads a json file and passes it to render().
+   */
+  function readLocalFile() {
+
+    var frameStart = new Date().getTime(),
+        file = __dirname + '/data/frame' + currentFrame + '.json',
+        frames = [];
+
+    fs.readFile(file, 'utf8', function (err, data) {
+      if (err) {
+        console.log('Error: ' + err);
+        return;
+      }
+      frames.push(JSON.parse(data));
+      render(data, frameStart); // need to stringify everything
+    });
   }
 
   function readFile() {
@@ -106,10 +126,10 @@
     var radiansToDegrees = "var radiansToDegrees = function(radians) {return radians * (180/Math.PI);};";
 
     var isInside = "var isInside = function(obj, container) { \
-        if (obj.location.x + obj.width > 0 && \
-          obj.location.x - obj.width < container.width && \
-          obj.location.y + obj.height > 0 && \
-          obj.location.y - obj.height < container.height) { \
+        if (obj.location.x + obj.width / 2 > 0 && \
+          obj.location.x - obj.width / 2 < container.width && \
+          obj.location.y + obj.height / 2 > 0 && \
+          obj.location.y - obj.height / 2 < container.height) { \
           return true; \
         } \
         return false; \
@@ -120,6 +140,8 @@
     var setPrefs = "app.preferences.rulerUnits = Units.PIXELS;";
 
     var restorePrefs = "app.preferences.rulerUnits = startTypeUnits;";
+
+    var setDialogMode = "app.displayDialogs = DialogModes.NO;";
 
     var frames = "var frame = " + data + ";";
 
@@ -164,9 +186,9 @@
     }";
 
     var main = "var item = frame.items[j]; \
-        myLayerSets[myLayerSets.length - 1].artLayers.add(); \
         var itemWidth = item.scale * frame.world.resolution * 4; \
         var itemHeight = item.scale * frame.world.resolution * 4; \
+        myLayerSets[myLayerSets.length - 1].artLayers.add(); \
         var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight)); \
         app.activeDocument.selection.select(selRegion); \
         var x = (item.location.x * frame.world.resolution * " + retina + ") - itemWidth / 2; \
@@ -192,7 +214,7 @@
         } \
         if (frame.world.colorMode === 'hsla') { \
           app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359); \
-          app.foregroundColor.hsb.saturation = constrain(item.saturation * 100, 0, 100); \
+          app.foregroundColor.hsb.saturation = constrain(100 - (item.lightness * 100), 0, 100); \
           app.foregroundColor.hsb.brightness = constrain(item.lightness * 100, 0, 100); \
         } else { \
           app.foregroundColor.rgb.red = constrain(item.color[0], 0, 255); \
@@ -200,13 +222,14 @@
           app.foregroundColor.rgb.blue = constrain(item.color[2], 0, 255); \
         } \
         app.activeDocument.selection.fill(app.foregroundColor); \
-        app.activeDocument.selection.translate(itemWidth * 2, itemHeight * 2); \
+        app.activeDocument.selection.translate(docWidth / 2, docHeight / 2); \
         app.activeDocument.selection.rotate(item.location.x + item.scale, AnchorPosition.MIDDLECENTER); \
-        app.activeDocument.selection.translate(x - (itemWidth * 2), y - (itemHeight * 2)); \
+        app.activeDocument.selection.translate(x - (docWidth / 2), y - (docHeight / 2)); \
         app.activeDocument.selection.deselect(); \
         app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
         var blurAngle = constrain(item.angle, -360, 360); \
-        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30));";
+        var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30), 1, 2000); \
+        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);";
 
     var closeMainLoop = "}";
 
@@ -226,6 +249,7 @@
         isInside +
         getInitialPrefs +
         setPrefs +
+        setDialogMode +
         frames +
         createDoc +
         fillBackground +
@@ -249,6 +273,8 @@
           } else {
             renderComplete();
           }*/
+          //currentFrame++;
+          //readLocalFile();
           sendComplete();
         },
         function (err) {
