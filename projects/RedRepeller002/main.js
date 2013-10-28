@@ -275,7 +275,9 @@
           }*/
           //currentFrame++;
           //readLocalFile();
-          sendComplete();
+
+          var frameDuration = new Date().getTime() - frameStart;
+          sendComplete(frameDuration);
         },
         function (err) {
             console.error('err: ', err);
@@ -285,9 +287,9 @@
   /**
    * Sends the completed frame number to the boss.
    */
-  function sendComplete() {
+  function sendComplete(frameDuration) {
 
-    http.get(bossServer + "/complete/" + currentFrame, function(res) {
+    http.get(bossServer + "/complete/" + currentFrame + "/" + frameDuration, function(res) {
 
       var data = '';
 
