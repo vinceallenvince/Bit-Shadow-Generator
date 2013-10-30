@@ -15,13 +15,14 @@
 
   var generator;
   var dataFiles = null;
-  var totalFrames = 0;
-  var currentFrame = 200;
+  //var totalFrames = 0;
+  var currentFrame = 0;
+  var totalFramesRendered = 0;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
-  var sendTweet = false;
-  var framesBTWTweets = 100;
+  var sendTweet = true;
+  var framesBTWTweets = 2;
 
   function init(gen) {
     generator = gen;
@@ -277,7 +278,13 @@
           //readLocalFile();
 
           var frameDuration = new Date().getTime() - frameStart;
+          totalFramesRendered++;
           sendComplete(frameDuration);
+
+          var projectTime = msToSec(new Date().getTime() - projectStart);
+          if (sendTweet && !(totalFramesRendered % framesBTWTweets)) {
+            createTweetStatus(projectTime);
+          }
         },
         function (err) {
             console.error('err: ', err);
@@ -314,7 +321,7 @@
    * @param {Array.<string>} dataFiles An array of file names.
    * @return {number} The total number of frames to render.
    */
-  function getTotalFrames(dataFiles) {
+  /*function getTotalFrames(dataFiles) {
     var i, total = 0;
     for (var i = dataFiles.length - 1; i >=0; i--) {
       if (dataFiles[i].search('.json') !== -1) {
@@ -322,7 +329,7 @@
       }
     }
     return total;
-  }
+  }*/
 
   /**
    * Returns the approximate time remaining to render the project.
@@ -331,9 +338,9 @@
    * @param {number} totalFrames The total number of frames in the project.
    * return {number} Seconds.
    */
-  function getTimeRemaining(frameDuration, currentFrame, totalFrames) {
+  /*function getTimeRemaining(frameDuration, currentFrame, totalFrames) {
     return msToSec((totalFrames - currentFrame) * frameDuration);
-  }
+  }*/
 
   /**
    * Formats a folder name based on the currrent time.
@@ -366,7 +373,7 @@
   /**
    * Done!
    */
-  function renderComplete() {
+  /*function renderComplete() {
     var projectTime = msToSec(new Date().getTime() - projectStart);
     if (sendTweet) {
       createTweetStatus(projectTime);
@@ -375,7 +382,7 @@
     console.log('Total frames: ' + (currentFrame - 1));
     console.log('Time: ' + projectTime + 'sec');
 
-  }
+  }*/
 
   function createTweet(status) {
 
