@@ -316,22 +316,6 @@
   }
 
   /**
-   * Iterates over a passed array of file names and counts
-   * only the .json files.
-   * @param {Array.<string>} dataFiles An array of file names.
-   * @return {number} The total number of frames to render.
-   */
-  /*function getTotalFrames(dataFiles) {
-    var i, total = 0;
-    for (var i = dataFiles.length - 1; i >=0; i--) {
-      if (dataFiles[i].search('.json') !== -1) {
-        total++;
-      }
-    }
-    return total;
-  }*/
-
-  /**
    * Returns the approximate time remaining to render the project.
    * @param {number} frameDuration The last frame duration in milliseconds.
    * @param {number} currentFrame The current frame number.
@@ -386,7 +370,7 @@
 
   function createTweet(status) {
 
-    var fileName = framesFolder + '/' + (currentFrame - 1) + '.jpg';
+    var fileName = framesFolder + '/' + currentFrame + '.jpg';
 
     var data = fs.readFileSync(fileName);
 
