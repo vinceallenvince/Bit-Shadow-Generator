@@ -15,7 +15,6 @@
 
   var generator;
   var dataFiles = null;
-  //var totalFrames = 0;
   var currentFrame = 0;
   var totalFramesRendered = 0;
   var projectStart = null;
@@ -26,7 +25,7 @@
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('RedRepeller002', 'RedRepeller002', true, false);
+    generator.addMenuItem('Flock001', 'Flock001', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -35,7 +34,7 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'RedRepeller002') {
+    if (e.generatorMenuChanged.name === 'Flock001') {
       projectStart = new Date().getTime();
       framesFolder = __dirname + '/Frames/' + getFolderName();
       fs.mkdirSync(framesFolder);
@@ -89,6 +88,11 @@
 
       res.on('end', function(){
         var parsedData = JSON.parse(data);
+
+        if (parsedData.stop) {
+          return;
+        }
+
         currentFrame = parsedData.frame;
         frames.push(parsedData);
         render(data, frameStart); // need to stringify everything
@@ -127,10 +131,10 @@
     var radiansToDegrees = "var radiansToDegrees = function(radians) {return radians * (180/Math.PI);};";
 
     var isInside = "var isInside = function(obj, container) { \
-        if (obj.location.x > 0 && \
-          obj.location.x + obj.width < container.width && \
-          obj.location.y > 0 && \
-          obj.location.y + obj.height < container.height) { \
+        if (obj.location.x > -obj.width && \
+          obj.location.x < container.width && \
+          obj.location.y > -obj.height && \
+          obj.location.y < container.height) { \
           return true; \
         } \
         return false; \
@@ -158,7 +162,7 @@
         app.activeDocument.selection.fill(solidColor); \
         app.activeDocument.selection.deselect(); \
         var myLayerSets = []; \
-        var layerSetMax = Math.floor(frame.items.length / 4); \
+        var layerSetMax = Math.floor(frame.items.length / 64); \
         var layerSetCount = 0; \
         myLayerSets.push(app.activeDocument.layerSets.add()); \
         myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;";
@@ -170,7 +174,7 @@
      * Adds a filled selection to a new artLayer so Gausssian blue does not try to blur
      * an empty layer. Applies Gaussian blur to entire group.
      */
-     //       app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frame.items.length, 20, 0)); \
+     // app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frame.items.length, 20, 0)); \
     var checkLayerSet = "if (layerSetCount < layerSetMax) { \
       layerSetCount++; \
     } else { \
@@ -181,6 +185,7 @@
       app.activeDocument.activeLayer.opacity = 1; \
       app.activeDocument.selection.deselect(); \
       myLayerSets[myLayerSets.length - 1].merge(); \
+      app.activeDocument.activeLayer.applyGaussianBlur(map(j, 0, frame.items.length, 3, 0)); \
       myLayerSets.push(app.activeDocument.layerSets.add()); \
       myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length; \
       layerSetCount = 0; \
@@ -224,13 +229,13 @@
         } \
         app.activeDocument.selection.fill(app.foregroundColor); \
         app.activeDocument.selection.translate(docWidth / 2, docHeight / 2); \
-        app.activeDocument.selection.rotate(item.location.x + item.scale, AnchorPosition.MIDDLECENTER); \
-        app.activeDocument.selection.translate(x - (docWidth / 2), y - (docHeight / 2)); \
-        app.activeDocument.selection.deselect(); \
+        app.activeDocument.selection.rotate(item.angle, AnchorPosition.MIDDLECENTER); \
         app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100); \
         var blurAngle = constrain(item.angle, -360, 360); \
         var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30), 1, 2000); \
-        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);";
+        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance); \
+        app.activeDocument.selection.translate(x - (docWidth / 2), y - (docHeight / 2)); \
+        app.activeDocument.selection.deselect();";
 
     var closeMainLoop = "}";
 
@@ -261,19 +266,8 @@
         saveFile +
         restorePrefs).done(
         function (document) {
-          /*var frameDuration = new Date().getTime() - frameStart;
-          currentFrame++;
-          console.log('Frame ' + currentFrame + ' (' + msToSec(frameDuration) +
-              's) Time remaining: ~' + getTimeRemaining(frameDuration, currentFrame, totalFrames) + 's');
-          if (currentFrame < totalFrames) {
-            readFile();
-            var projectTime = msToSec(new Date().getTime() - projectStart);
-            if (sendTweet && !(currentFrame % framesBTWTweets)) {
-              createTweetStatus(projectTime);
-            }
-          } else {
-            renderComplete();
-          }*/
+
+          // uncomment if debugging w local files
           //currentFrame++;
           //readLocalFile();
 
@@ -316,17 +310,6 @@
   }
 
   /**
-   * Returns the approximate time remaining to render the project.
-   * @param {number} frameDuration The last frame duration in milliseconds.
-   * @param {number} currentFrame The current frame number.
-   * @param {number} totalFrames The total number of frames in the project.
-   * return {number} Seconds.
-   */
-  /*function getTimeRemaining(frameDuration, currentFrame, totalFrames) {
-    return msToSec((totalFrames - currentFrame) * frameDuration);
-  }*/
-
-  /**
    * Formats a folder name based on the currrent time.
    */
   function getFolderName() {
@@ -339,11 +322,12 @@
         minutes = date.getMinutes(),
         seconds = date.getSeconds();
 
-    return year + (month < 10 ? '0' + month : month) +
-        (day < 10 ? '0' + day : day) +
-        (hours < 10 ? '0' + hours : hours) +
-        (minutes < 10 ? '0' + minutes : minutes) +
-        (seconds < 10 ? '0' + seconds : seconds);
+    return year.toString() +
+        (month < 10 ? '0' + month : month).toString() +
+        (day < 10 ? '0' + day : day).toString() +
+        (hours < 10 ? '0' + hours : hours).toString() +
+        (minutes < 10 ? '0' + minutes : minutes).toString() +
+        (seconds < 10 ? '0' + seconds : seconds).toString();
   }
 
   /**
