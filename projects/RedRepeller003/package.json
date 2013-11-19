@@ -1,7 +1,7 @@
 {
-  "name": "Test001",
+  "name": "RedRepeller003",
   "version": "1.0.0",
-  "description": "Test001",
+  "description": "RedRepeller003",
   "main": "main.js",
   "generator-core-version": ">=1.0.0",
   "dependencies": {

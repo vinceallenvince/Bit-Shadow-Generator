@@ -22,10 +22,11 @@
   var config = null;
   var sendTweet = false;
   var framesBTWTweets = 100;
+  var devMode = true;
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('Test001', 'Test001', true, false);
+    generator.addMenuItem('Template001', 'Template001', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -34,10 +35,50 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'Test001') {
+    if (e.generatorMenuChanged.name === 'Template001') {
       projectStart = new Date().getTime();
-      render();
+
+      // create frames folder
+
+      // store credentials in config.json
+      var file = __dirname + '/config.json';
+
+      fs.readFile(file, 'utf8', function (err, data) {
+        if (err) {
+          console.log('Error: ' + err);
+          return;
+        }
+        config = JSON.parse(data);
+
+        if (devMode) {
+          readLocalFile();
+        } else {
+          readFile();
+        }
+
+        //render();
+      });
+
     }
+  }
+
+  /**
+   * Reads a json file and passes it to render().
+   */
+  function readLocalFile() {
+
+    var frameStart = new Date().getTime(),
+        file = __dirname + '/data/frame' + currentFrame + '.json',
+        frames = [];
+
+    fs.readFile(file, 'utf8', function (err, data) {
+      if (err) {
+        console.log('Error: ' + err);
+        return;
+      }
+      frames.push(JSON.parse(data));
+      render(data, frameStart); // need to stringify everything
+    });
   }
 
   var createDocA = function() {
@@ -152,7 +193,7 @@
     app.activeDocument.selection.deselect();
 
     var myLayerSets = [];
-    var totalLayerSets = 4;
+    var totalLayerSets = 8;
     var maxLayersPerSet = Math.floor(items.length / totalLayerSets);
     myLayerSets.push(app.activeDocument.layerSets.add());
     myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;
@@ -183,15 +224,14 @@
         } else {
           myLayerSets[myLayerSets.length - 1].merge();
         }
+
         // create new layerSet
-        myLayerSets.push(app.activeDocument.layerSets.add());
-        myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;
+        if (myLayerSets.length <= totalLayerSets) {
+          myLayerSets.push(app.activeDocument.layerSets.add());
+          myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;
+        }
       }
-
     }
-
-    // merge the last layerSet
-    // myLayerSets[myLayerSets.length - 1].merge();
 
   };
 
@@ -201,45 +241,12 @@
 
     generator.evaluateJSXString(str.slice(0, str.length - 3)).done(
         function (document) {
-
+          console.log(document);
         },
         function (err) {
             console.error('err: ', err);
         });
   }
-
-  /**
-   * Generates a psuedo-random number within a range.
-   *
-   * @function getRandomNumber
-   * @memberof System
-   * @param {number} low The low end of the range.
-   * @param {number} high The high end of the range.
-   * @param {boolean} [flt] Set to true to return a float.
-   * @returns {number} A number.
-   */
-  function getRandomNumber(low, high, flt) {
-    if (flt) {
-      return Math.random()*(high-(low-1)) + low;
-    }
-    return Math.floor(Math.random()*(high-(low-1))) + low;
-  };
-
-  /*
-   * update width/height based on scale; ex: var itemWidth = data.width * data.scale; itemHeight = data.height * data.scale;
-   * create selection based on width, height; ex: var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight));
-   * translate selection based on location.x, location.y; ex: selRegion.translateBoundary(data.location.x * data.world.resolution, data.location.y * data.world.resolution)
-   * update app.foregroundColor based on hue, saturation, lightness; ex:
-   *   app.foregroundColor.hsb.hue = number [0.0..360.0];
-   *   app.foregroundColor.hsb.saturation = number [0.0..100.0];
-   *   app.foregroundColor.hsb.brightness = number [0.0..100.0];
-   * set layer opacity based on opacity; ex: app.activeDocument.activeLayer.opacity = [0.0..100.0];
-   * deselect
-   * apply motion blur based on item's angle (direction) and velocity; ex: app.activeDocument.activeLayer.applyMotionBlur(30, 10);
-   * motion blur wants a number bw -90 & 90
-   * saveFile
-   * app.activeDocument.activeLayer.applyGaussianBlur(map(i, 0, frames[i].items.length, 10, 0)); \
-   */
 
   exports.init = init;
 
