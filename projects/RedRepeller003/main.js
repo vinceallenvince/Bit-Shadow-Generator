@@ -13,7 +13,7 @@
       msToSec = require('./bit-gen-utils').msToSec,
       msToMin = require('./bit-gen-utils').msToMin;
 
-  var bossServer = 'http://bit-shadow-bouncer.jit.su';
+  var bossServer = 'http://redrepeller.jit.su';
 
   var restClient = new RestClient();
   restClient.on('error', function(err){ // handling client error events
