@@ -172,7 +172,7 @@
 
     //
 
-    var affectLayerSets = true;
+    var affectLayerSets = false;
 
     var startTypeUnits = app.preferences.typeUnits; // getInitialPrefs
     app.preferences.rulerUnits = Units.PIXELS; // setPrefs
