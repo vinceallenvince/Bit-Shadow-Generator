@@ -483,12 +483,20 @@ return;
 
       res.on('end',function(){
         console.log(data);
-        readFile();
+        if (devMode) {
+          readLocalFile();
+        } else {
+          readRemoteFile();
+        }
       })
 
     }).on('error', function(e) {
       console.log("Got error: " + e.message);
-      readFile();
+      if (devMode) {
+        readLocalFile();
+      } else {
+        readRemoteFile();
+      }
     });
   }
 
