@@ -11,30 +11,29 @@
       OAuth = require('oauth'),
       getFolderName = require('./bit-gen-utils').getFolderName,
       msToSec = require('./bit-gen-utils').msToSec,
-      msToMin = require('./bit-gen-utils').msToMin,
-      keen = require('keen.io');
+      msToMin = require('./bit-gen-utils').msToMin;
+
+  var bossServer = 'http://redrepeller.jit.su';
 
   var restClient = new RestClient();
   restClient.on('error', function(err){ // handling client error events
     console.error('Something went wrong on the client', err);
   });
 
-  var projectName = 'RedRepellerBlur';
   var generator;
   var dataFiles = null;
-  var currentFrame = 76; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 0; // boss determines current frame; in devMode, we manually increment after frame is done
   var projectStart = null;
   var framesFolder = null;
   var config = null;
   var sendTweet = false;
-  var framesBTWTweets = 50;
+  var framesBTWTweets = 1;
   var devMode = true; // if true, reads local data files
-  var logKeenEvents = true;
   var totalFramesRendered = 0;
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem(projectName, projectName, true, false);
+    generator.addMenuItem('Orbit004', 'Orbit004', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -43,11 +42,11 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === projectName) {
+    if (e.generatorMenuChanged.name === 'Orbit004') {
       projectStart = new Date().getTime();
 
       // create frames folder
-      framesFolder = __dirname + '/Frames/' + getFolderName(projectName);
+      framesFolder = __dirname + '/Frames/' + getFolderName();
       fs.mkdirSync(framesFolder);
 
       // store credentials in config.json
@@ -59,14 +58,6 @@
           return;
         }
         config = JSON.parse(data);
-
-        // Configure Keen.io instance. Only projectId and writeKey are required to send data.
-        keen = keen.configure({
-            projectId: config.keen_project_id,
-            writeKey: config.keen_write_key,
-            readKey: config.keen_read_key,
-            masterKey: config.keen_master_key
-        });
 
         if (devMode) {
           readLocalFile();
@@ -102,7 +93,7 @@
 
     var frameStart = new Date().getTime();
 
-    http.get(config.bossServer + "/data", function(res) {
+    http.get(bossServer + "/data", function(res) {
 
       var data = '';
 
@@ -194,14 +185,14 @@
 
     // fill the background
     var solidColor = new SolidColor();
-    solidColor.rgb.red = 0;
-    solidColor.rgb.green = 0;
-    solidColor.rgb.blue = 0;
+    solidColor.rgb.red = world.backgroundColor[0] ;
+    solidColor.rgb.green = world.backgroundColor[1];
+    solidColor.rgb.blue = world.backgroundColor[2];
     app.activeDocument.selection.selectAll();
     app.activeDocument.selection.fill(solidColor);
     app.activeDocument.selection.deselect();
 
-    var totalLayerSets = 8;
+    var totalLayerSets = 1;
     var maxLayersPerSet = Math.floor(items.length / totalLayerSets);
     myLayerSets.push(app.activeDocument.layerSets.add());
     myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;
@@ -230,37 +221,33 @@
         width: docWidth,
         height: docHeight
       };
+      if (!isInside(pos, container)) {
+        continue;
+      }
 
       myLayerSets[myLayerSets.length - 1].artLayers.add();
 
-      if (isInside(pos, container)) {
-
-        var color = item.color;
-        var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight));
-        app.activeDocument.selection.select(selRegion);
-        if (world.colorMode === 'hsla') {
-          app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359);
-          app.foregroundColor.hsb.saturation = constrain(100 - (item.lightness * 100), 0, 100);
-          app.foregroundColor.hsb.brightness = constrain(item.lightness * 100, 0, 100);
-        } else {
-          app.foregroundColor.rgb.red = constrain(item.color[0], 0, 255);
-          app.foregroundColor.rgb.green = constrain(item.color[1], 0, 255);
-          app.foregroundColor.rgb.blue = constrain(item.color[2], 0, 255);
-        }
-        app.activeDocument.selection.fill(app.foregroundColor);
-        app.activeDocument.selection.translate(docWidth / 2, docHeight / 2);
-        if (item.angle) {
-          app.activeDocument.selection.rotate(item.angle, AnchorPosition.MIDDLECENTER);
-        }
-        app.activeDocument.selection.deselect();
-        app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100);
-        if (item.angle) {
-          var blurAngle = constrain(item.angle, -360, 360);
-          var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 30), 1, 2000);
-          app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
-        }
-        app.activeDocument.activeLayer.translate(x - (docWidth / 2), y - (docHeight / 2));
+      var color = item.color;
+      var selRegion = Array(Array(0, 0), Array(itemWidth, 0), Array(itemWidth, itemHeight), Array(0, itemHeight));
+      app.activeDocument.selection.select(selRegion);
+      if (world.colorMode === 'hsla') {
+        app.foregroundColor.hsb.hue = constrain(item.hue, 0, 359);
+        app.foregroundColor.hsb.saturation = constrain(100 - (item.lightness * 100), 0, 100);
+        app.foregroundColor.hsb.brightness = constrain(item.lightness * 100, 0, 100);
+      } else {
+        app.foregroundColor.rgb.red = constrain(item.color[0], 0, 255);
+        app.foregroundColor.rgb.green = constrain(item.color[1], 0, 255);
+        app.foregroundColor.rgb.blue = constrain(item.color[2], 0, 255);
       }
+      app.activeDocument.selection.fill(app.foregroundColor);
+      app.activeDocument.selection.translate(docWidth / 2, docHeight / 2);
+      app.activeDocument.selection.rotate(item.angle, AnchorPosition.MIDDLECENTER);
+      app.activeDocument.selection.deselect();
+      app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100);
+      //var blurAngle = constrain(item.angle, -360, 360);
+      //var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 100), 1, 2000);
+      //app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
+      app.activeDocument.activeLayer.translate(x - (docWidth / 2), y - (docHeight / 2));
 
       //
 
@@ -311,21 +298,6 @@
           var dur = frameDuration < 60000 ? msToSec(frameDuration) + ' seconds' : msToMin(frameDuration) + ' minutes';
           console.log('Rendered frame ' + currentFrame + ' in ' + dur + '.');
 
-          if (logKeenEvents) {
-            keen.addEvent(projectName + '1',
-                {
-                  'currentFrame': currentFrame,
-                  'frameDuration': frameDuration,
-                  'computerName': config.computerName || 'unknown'
-                }, function(err, res) {
-              if (err) {
-                  console.log("Oh no, an error!", err);
-              } else {
-                  console.log("Hooray, it worked!", res);
-              }
-            });
-          }
-
           totalFramesRendered++;
 
           if (!devMode) {
@@ -336,7 +308,7 @@
           }
 
           // check to send Tweet
-          if (sendTweet && !(totalFramesRendered % framesBTWTweets)) {
+          /*if (sendTweet && !(totalFramesRendered % framesBTWTweets)) {
             createTweetStatus(frameDuration, createTweet, function() {
               if (devMode) {
                 readLocalFile();
@@ -344,7 +316,7 @@
                 readRemoteFile();
               }
             });
-          }
+          }*/
         },
         function (err) {
             console.error('err: ', err);
@@ -386,7 +358,8 @@
   }
 
   function createTweet(status) {
-
+console.log(status);
+return;
     var fileName = framesFolder + '/' + (currentFrame - 1) + '.jpg';
 
     var data = fs.readFileSync(fileName);
@@ -500,7 +473,7 @@
    */
   function sendComplete(frameDuration) {
 
-    http.get(config.bossServer + "/complete/" + currentFrame + "/" + frameDuration, function(res) {
+    http.get(bossServer + "/complete/" + currentFrame + "/" + frameDuration, function(res) {
 
       var data = '';
 

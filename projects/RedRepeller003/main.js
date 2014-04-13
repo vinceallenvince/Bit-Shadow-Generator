@@ -22,13 +22,13 @@
 
   var generator;
   var dataFiles = null;
-  var currentFrame = 0; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 1322; // boss determines current frame; in devMode, we manually increment after frame is done
   var projectStart = null;
   var framesFolder = null;
   var config = null;
   var sendTweet = false;
   var framesBTWTweets = 1;
-  var devMode = false; // if true, reads local data files
+  var devMode = true; // if true, reads local data files
   var totalFramesRendered = 0;
 
   function init(gen) {
