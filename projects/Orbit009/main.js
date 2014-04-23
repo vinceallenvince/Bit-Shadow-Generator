@@ -22,7 +22,7 @@
 
   var generator;
   var dataFiles = null;
-  var currentFrame = 493; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 209; // boss determines current frame; in devMode, we manually increment after frame is done
   var projectStart = null;
   var framesFolder = null;
   var config = null;
@@ -33,7 +33,7 @@
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('Orbit004', 'Orbit004', true, false);
+    generator.addMenuItem('Orbit009', 'Orbit009', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -42,7 +42,7 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'Orbit004') {
+    if (e.generatorMenuChanged.name === 'Orbit009') {
       projectStart = new Date().getTime();
 
       // create frames folder
@@ -244,9 +244,9 @@
       app.activeDocument.selection.rotate(item.angle, AnchorPosition.MIDDLECENTER);
       app.activeDocument.selection.deselect();
       app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100);
-      //var blurAngle = constrain(item.angle, -360, 360);
-      //var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 100), 1, 2000);
-      //app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
+      var blurAngle = constrain(item.angle, -360, 360);
+      var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 100), 1, 2000);
+      app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
       app.activeDocument.activeLayer.translate(x - (docWidth / 2), y - (docHeight / 2));
 
       //

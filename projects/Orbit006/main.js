@@ -22,7 +22,7 @@
 
   var generator;
   var dataFiles = null;
-  var currentFrame = 493; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 0; // boss determines current frame; in devMode, we manually increment after frame is done
   var projectStart = null;
   var framesFolder = null;
   var config = null;
@@ -33,7 +33,7 @@
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('Orbit004', 'Orbit004', true, false);
+    generator.addMenuItem('Orbit006', 'Orbit006', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -42,7 +42,7 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'Orbit004') {
+    if (e.generatorMenuChanged.name === 'Orbit006') {
       projectStart = new Date().getTime();
 
       // create frames folder

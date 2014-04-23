@@ -22,7 +22,7 @@
 
   var generator;
   var dataFiles = null;
-  var currentFrame = 0; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 260; // boss determines current frame; in devMode, we manually increment after frame is done
   var projectStart = null;
   var framesFolder = null;
   var config = null;
