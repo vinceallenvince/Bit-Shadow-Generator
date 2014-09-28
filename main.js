@@ -13,7 +13,7 @@
       msToSec = require('./bit-gen-utils').msToSec,
       msToMin = require('./bit-gen-utils').msToMin;
 
-  var bossServer = 'http://redrepeller.jit.su';
+  var bossServer = '';
 
   var restClient = new RestClient();
   restClient.on('error', function(err){ // handling client error events
@@ -22,18 +22,19 @@
 
   var generator;
   var dataFiles = null;
-  var currentFrame = 1025; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 0; // boss determines current frame; in devMode, we manually increment after frame is done
   var projectStart = null;
   var framesFolder = null;
   var config = null;
-  var sendTweet = false;
-  var framesBTWTweets = 1;
+  var sendTweet = true;
+  var framesBTWTweets = 2; // must be > 1
   var devMode = true; // if true, reads local data files
   var totalFramesRendered = 0;
+  var blurItems = false;
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('Orbit008', 'Orbit008', true, false);
+    generator.addMenuItem('BitShadowDemo', 'BitShadowDemo', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -42,11 +43,11 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'Orbit008') {
+    if (e.generatorMenuChanged.name === 'BitShadowDemo') {
       projectStart = new Date().getTime();
 
       // create frames folder
-      framesFolder = __dirname + '/Frames/' + getFolderName();
+      framesFolder = __dirname + '/frames/' + getFolderName();
       fs.mkdirSync(framesFolder);
 
       // store credentials in config.json
@@ -121,6 +122,7 @@
     var data = "{{data}}";
     var framesFolder = '"{{framesFolder}}"';
     var currentFrame = "{{currentFrame}}";
+    var blurItems = "{{blurItems}}";
 
     var myLayerSets = [];
     var world = data.world;
@@ -185,9 +187,9 @@
 
     // fill the background
     var solidColor = new SolidColor();
-    solidColor.rgb.red = world.backgroundColor[0] ;
-    solidColor.rgb.green = world.backgroundColor[1];
-    solidColor.rgb.blue = world.backgroundColor[2];
+    solidColor.rgb.red = world.color[0] ;
+    solidColor.rgb.green = world.color[1];
+    solidColor.rgb.blue = world.color[2];
     app.activeDocument.selection.selectAll();
     app.activeDocument.selection.fill(solidColor);
     app.activeDocument.selection.deselect();
@@ -244,9 +246,11 @@
       app.activeDocument.selection.rotate(item.angle, AnchorPosition.MIDDLECENTER);
       app.activeDocument.selection.deselect();
       app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100);
-      var blurAngle = constrain(item.angle, -360, 360);
-      var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 100), 1, 2000);
-      app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
+      if (blurItems) {
+        var blurAngle = constrain(item.angle, -360, 360);
+        var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 100), 1, 2000);
+        app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
+      }
       app.activeDocument.activeLayer.translate(x - (docWidth / 2), y - (docHeight / 2));
 
       //
@@ -289,7 +293,8 @@
         replace('function () {', '').
         replace('"{{data}}"', data).
         replace('"{{framesFolder}}"', framesFolder).
-        replace('"{{currentFrame}}"', currentFrame);
+        replace('"{{currentFrame}}"', currentFrame).
+        replace('"{{blurItems}}"', blurItems);
 
     generator.evaluateJSXString(str.slice(0, str.length - 3)).done(
         function (document) {
@@ -308,15 +313,16 @@
           }
 
           // check to send Tweet
-          /*if (sendTweet && !(totalFramesRendered % framesBTWTweets)) {
+          if (sendTweet && !(totalFramesRendered % framesBTWTweets)) {
             createTweetStatus(frameDuration, createTweet, function() {
+              // errback
               if (devMode) {
                 readLocalFile();
               } else {
                 readRemoteFile();
               }
             });
-          }*/
+          }
         },
         function (err) {
             console.error('err: ', err);
@@ -358,8 +364,7 @@
   }
 
   function createTweet(status) {
-console.log(status);
-return;
+
     var fileName = framesFolder + '/' + (currentFrame - 1) + '.jpg';
 
     var data = fs.readFileSync(fileName);
