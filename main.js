@@ -22,19 +22,20 @@
 
   var generator;
   var dataFiles = null;
-  var currentFrame = 0; // boss determines current frame; in devMode, we manually increment after frame is done
+  var currentFrame = 0;
   var projectStart = null;
   var framesFolder = null;
   var config = null;
-  var sendTweet = true;
+  var sendTweet = false;
   var framesBTWTweets = 2; // must be > 1
-  var devMode = true; // if true, reads local data files
   var totalFramesRendered = 0;
-  var blurItems = false;
+  var blurItems = true;
+  var minBlur = 0;
+  var maxBlur = 100;
 
   function init(gen) {
     generator = gen;
-    generator.addMenuItem('BitShadowDemo', 'BitShadowDemo', true, false);
+    generator.addMenuItem('ProjName', 'ProjName', true, false);
     generator.onPhotoshopEvent('generatorMenuChanged', menuClicked);
   }
 
@@ -43,7 +44,7 @@
    * @param {Object} e An event object.
    */
   function menuClicked(e) {
-    if (e.generatorMenuChanged.name === 'BitShadowDemo') {
+    if (e.generatorMenuChanged.name === 'ProjName') {
       projectStart = new Date().getTime();
 
       // create frames folder
@@ -59,12 +60,7 @@
           return;
         }
         config = JSON.parse(data);
-
-        if (devMode) {
-          readLocalFile();
-        } else {
-          readRemoteFile();
-        }
+        readLocalFile();
       });
 
     }
@@ -87,42 +83,14 @@
     });
   }
 
-  /**
-   * Requests data from the bit-shadow-boss and passes it to render().
-   */
-  function readRemoteFile() {
-
-    var frameStart = new Date().getTime();
-
-    http.get(bossServer + "/data", function(res) {
-
-      var data = '';
-
-      res.on('data', function (chunk){
-          data += chunk;
-      });
-
-      res.on('end', function(){
-        var parsedData = JSON.parse(data);
-        if (parsedData.stop) {
-          return;
-        }
-        currentFrame = parsedData.frame;
-        render(data, frameStart);
-      })
-
-    }).on('error', function(e) {
-      console.log("readRemoteFile() Error: " + e.message + "; trying again...");
-      setTimeout(readRemoteFile, 3000);
-    });
-  }
-
   var createDoc = function() {
 
     var data = "{{data}}";
     var framesFolder = '"{{framesFolder}}"';
     var currentFrame = "{{currentFrame}}";
     var blurItems = "{{blurItems}}";
+    var minBlur = "{{minBlur}}";
+    var maxBlur = "{{maxBlur}}";
 
     var myLayerSets = [];
     var world = data.world;
@@ -155,27 +123,6 @@
       return false;
     };
 
-    /**
-     * Merges the top layer set and applys a filter.
-     * @param  {number} index The current item's index in items.
-     * @param  {Array} myLayerSets References to all the layer sets.
-     */
-    var layerSetsEffect = function(index, myLayerSets) {
-      var selection = app.activeDocument.selection;
-      myLayerSets[myLayerSets.length - 1].artLayers.add();
-      var fakeRegion = Array(Array(0, 0), Array(1, 0), Array(1, 1), Array(0, 1));
-      selection.select(fakeRegion);
-      selection.fill(app.foregroundColor);
-      app.activeDocument.activeLayer.opacity = 1;
-      selection.deselect();
-      myLayerSets[myLayerSets.length - 1].merge();
-      app.activeDocument.activeLayer.applyGaussianBlur(map(index, 0, items.length - 1, 20, 0));
-    };
-
-    //
-
-    var affectLayerSets = false;
-
     var startTypeUnits = app.preferences.typeUnits; // getInitialPrefs
     app.preferences.rulerUnits = Units.PIXELS; // setPrefs
     app.displayDialogs = DialogModes.NO; // setDialogMode
@@ -194,8 +141,6 @@
     app.activeDocument.selection.fill(solidColor);
     app.activeDocument.selection.deselect();
 
-    var totalLayerSets = 1;
-    var maxLayersPerSet = Math.floor(items.length / totalLayerSets);
     myLayerSets.push(app.activeDocument.layerSets.add());
     myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;
 
@@ -203,8 +148,9 @@
     for (var i = 0, max = items.length; i < max; i++) {
 
       var item = items[i];
-      var itemWidth = item.scale * world.resolution * 4;
-      var itemHeight = item.scale * world.resolution * 4;
+      // Constrain selection to 1 x 1. Smaller values throw an error.
+      var itemWidth = constrain(item.scale * world.resolution * 4, 1, docWidth);
+      var itemHeight = constrain(item.scale * world.resolution * 4, 1, docHeight);
       var x = (item.location.x * world.resolution * 2) - itemWidth / 2;
       var y = (item.location.y * world.resolution * 2) - itemHeight / 2;
       var pos = {
@@ -248,30 +194,10 @@
       app.activeDocument.activeLayer.opacity = constrain(item.opacity * 100, 0, 100);
       if (blurItems) {
         var blurAngle = constrain(item.angle, -360, 360);
-        var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, 0, 100), 1, 2000);
+        var blurDistance = constrain(map(mag(item.velocity.x, item.velocity.y), 0, item.maxSpeed, minBlur, maxBlur), 1, 2000);
         app.activeDocument.activeLayer.applyMotionBlur(blurAngle, blurDistance);
       }
       app.activeDocument.activeLayer.translate(x - (docWidth / 2), y - (docHeight / 2));
-
-      //
-
-      /*
-       * If the total number of art layers equals maxLayersPerSet, merge the current set
-       * and create a new one. Also checks if we should apply an effect to the merged set.
-       */
-      if (myLayerSets[myLayerSets.length - 1].artLayers.length >= maxLayersPerSet) {
-        if (affectLayerSets) { // check if we need to affect layer set
-          layerSetsEffect(i, myLayerSets);
-        } else {
-          myLayerSets[myLayerSets.length - 1].merge();
-        }
-
-        // create new layerSet
-        if (myLayerSets.length <= totalLayerSets) {
-          myLayerSets.push(app.activeDocument.layerSets.add());
-          myLayerSets[myLayerSets.length - 1].name = 'set ' + myLayerSets.length;
-        }
-      }
     }
 
     var saveFile = new File(framesFolder + '/' + currentFrame + '.jpg');
@@ -294,7 +220,9 @@
         replace('"{{data}}"', data).
         replace('"{{framesFolder}}"', framesFolder).
         replace('"{{currentFrame}}"', currentFrame).
-        replace('"{{blurItems}}"', blurItems);
+        replace('"{{blurItems}}"', blurItems).
+        replace('"{{minBlur}}"', minBlur).
+        replace('"{{maxBlur}}"', maxBlur);
 
     generator.evaluateJSXString(str.slice(0, str.length - 3)).done(
         function (document) {
@@ -304,23 +232,14 @@
           console.log('Rendered frame ' + currentFrame + ' in ' + dur + '.');
 
           totalFramesRendered++;
-
-          if (!devMode) {
-            sendComplete(frameDuration);
-          } else {
-            currentFrame++;
-            readLocalFile();
-          }
+          currentFrame++;
+          readLocalFile();
 
           // check to send Tweet
           if (sendTweet && !(totalFramesRendered % framesBTWTweets)) {
             createTweetStatus(frameDuration, createTweet, function() {
               // errback
-              if (devMode) {
-                readLocalFile();
-              } else {
-                readRemoteFile();
-              }
+              readLocalFile();
             });
           }
         },
@@ -453,11 +372,7 @@
 
     request.on('error', function (err) {
       console.log('Error: Something is wrong.\n' + JSON.stringify(err) + '\n');
-      if (devMode) {
-        readLocalFile();
-      } else {
-        readRemoteFile();
-      }
+      readLocalFile();
     });
 
     request.on('response', function (response) {
@@ -470,39 +385,6 @@
         });
     });
 
-  }
-
-  /**
-   * Sends the completed frame number to the boss.
-   * @param {number} frameDuration Time in seconds it took to render the frame.
-   */
-  function sendComplete(frameDuration) {
-
-    http.get(bossServer + "/complete/" + currentFrame + "/" + frameDuration, function(res) {
-
-      var data = '';
-
-      res.on('data', function (chunk){
-          data += chunk;
-      });
-
-      res.on('end',function(){
-        console.log(data);
-        if (devMode) {
-          readLocalFile();
-        } else {
-          readRemoteFile();
-        }
-      })
-
-    }).on('error', function(e) {
-      console.log("Got error: " + e.message);
-      if (devMode) {
-        readLocalFile();
-      } else {
-        readRemoteFile();
-      }
-    });
   }
 
   exports.init = init;
